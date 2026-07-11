@@ -1,4 +1,4 @@
-name: rann-paper-code
+name: so-rann-pnp
 channels:
   - conda-forge
 dependencies:
@@ -9,4 +9,7 @@ dependencies:
   - pandas
   - pyyaml
   - tqdm
+  - pytest
   - pip
+  - pip:
+      - torch

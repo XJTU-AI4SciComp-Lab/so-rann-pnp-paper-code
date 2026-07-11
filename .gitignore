@@ -40,6 +40,13 @@ results/*.mat
 results/*.h5
 results/*.hdf5
 results/*.pkl
+results/**/*.npy
+results/**/*.npz
+results/**/*.mat
+results/**/*.h5
+results/**/*.hdf5
+results/**/*.pkl
+results/**/*.pth
 
 # Large data files
 data/*.npy

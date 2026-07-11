@@ -1,26 +1,26 @@
-# Paper Code Template
+# SO-RaNN PNP Paper Code
 
-This repository provides a standard template for paper-related code developed by the XJTU AI for Scientific Computing Lab.
-
-It is intended for randomized neural networks, local randomized neural networks, adaptive and growing randomized neural networks, operator learning models, and structure-preserving AI methods for scientific computing.
+This repository contains the paper code for the SO-RaNN experiments on
+Poisson-Nernst-Planck (PNP) and Poisson-Nernst-Planck-Navier-Stokes (PNP-NS)
+systems.
 
 ## Paper Information
 
-- Paper title:
-- Authors:
-- Journal / preprint:
-- DOI / arXiv:
-- Corresponding author:
-- Code maintainer:
-- Repository:
+- Title: Structure-Oriented Randomized Neural Networks for Poisson-Nernst-Planck and Poisson-Nernst-Planck-Navier-Stokes Systems
+- Authors: Yunlong Li and Fei Wang
+- Journal / preprint: arXiv preprint
+- DOI / arXiv: arXiv:2606.19912v1
+- Corresponding author: Fei Wang, feiwang.xjtu@xjtu.edu.cn
+- Code maintainer: Yunlong Li
+- Repository: https://github.com/XJTU-AI4SciComp-Lab/so-rann-pnp-paper-code
 
 ## Method Summary
 
-Briefly describe the method used in this paper.
-
-Example:
-
-This repository implements a randomized neural network method for solving differential equations. The hidden-layer parameters are randomly generated and fixed, while the output-layer coefficients are computed from a least-squares system.
+SO-RaNN solves decoupled linearized PNP and PNP-NS subproblems with randomized
+neural networks in a space-time formulation. The experiments include positivity
+correction, selected-time mass matching, SAV-type post-processing for energy
+dissipation diagnostics, and a divergence-free velocity approximation for the
+PNP-NS system.
 
 ## Repository Structure
 
@@ -32,8 +32,16 @@ This repository implements a randomized neural network method for solving differ
 ├── requirements.txt
 ├── environment.yml
 ├── src/
+│   ├── RNN_ref/
+│   └── so_rann/
 ├── examples/
 ├── experiments/
+│   ├── example4_1/
+│   ├── example4_2/
+│   ├── example4_3/
+│   ├── example4_4/
+│   ├── example4_5/
+│   └── example4_6/
 ├── data/
 ├── results/
 ├── figures/
@@ -43,14 +51,14 @@ This repository implements a randomized neural network method for solving differ
 
 ## Installation
 
-Create a conda environment:
+Using conda:
 
 ```bash
 conda env create -f environment.yml
-conda activate rann-paper-code
+conda activate so-rann-pnp
 ```
 
-Or install dependencies with pip:
+Using pip:
 
 ```bash
 pip install -r requirements.txt
@@ -58,62 +66,68 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-Run a minimal example:
+Run a lightweight smoke example:
 
 ```bash
-python examples/run_demo.py
+python examples/run_smoke.py
+```
+
+Run the basic tests:
+
+```bash
+pytest
+```
+
+If `pytest` is not installed yet, the smoke tests can also be run directly:
+
+```bash
+python tests/test_core_smoke.py
 ```
 
 ## Reproduce Results
 
-Use scripts in `experiments/` to reproduce figures and tables in the paper.
+The full paper-scale experiments are in `experiments/example4_*`:
 
 ```bash
-python experiments/reproduce_table1.py
-python experiments/reproduce_figure1.py
+python experiments/example4_1/PNP_ex1_st_re.py
+python experiments/example4_2/PNP_ex2_st_re.py
+python experiments/example4_3/PNP_ex3_st_re.py
+python experiments/example4_4/PNP_ex4_st_re.py
+python experiments/example4_5/PNPNS_ex1_st_re.py
+python experiments/example4_6/PNPNS_ex2_st_re.py
 ```
 
-## Folder Description
-
-- `src/`: source code for the proposed method.
-- `examples/`: simple runnable examples.
-- `experiments/`: scripts for reproducing paper figures and tables.
-- `data/`: small datasets or instructions for obtaining data.
-- `results/`: generated numerical results.
-- `figures/`: generated figures or plotting scripts.
-- `tests/`: basic tests for important modules.
-- `docs/`: additional documentation.
+See `docs/reproduction.md` for the mapping from paper tables and figures to
+scripts. Generated figures are written under `figures/`; generated checkpoints
+are written under `results/checkpoints/`.
 
 ## Data
 
-Small datasets may be included in `data/`.
+No external dataset is required for the included scripts. Initial conditions,
+manufactured solutions, and benchmark settings are defined in the corresponding
+`experiments/example4_*/*_real.py` files.
 
-Large datasets should not be committed directly to this repository. Instead, provide download links, data-generation scripts, or instructions in `data/README.md`.
+## Hardware Notes
 
-## Results
-
-Generated results should be saved in `results/`.
-
-Large result files should not be committed unless they are necessary for reproducing the paper.
+The smoke example and tests run on CPU. The full experiments are CPU-compatible
+but can be expensive because they reproduce paper-scale randomized neural
+network solves with many collocation, quadrature, and time-block points.
 
 ## Citation
 
 If you use this code, please cite the corresponding paper:
 
 ```bibtex
-@article{paper_key,
-  title   = {},
-  author  = {},
-  journal = {},
-  year    = {}
+@misc{li2026sorannpnp,
+  title        = {Structure-Oriented Randomized Neural Networks for Poisson-Nernst-Planck and Poisson-Nernst-Planck-Navier-Stokes Systems},
+  author       = {Li, Yunlong and Wang, Fei},
+  year         = {2026},
+  eprint       = {2606.19912},
+  archivePrefix = {arXiv},
+  primaryClass = {math.NA}
 }
 ```
 
 ## License
 
-Please see `LICENSE`.
-
-## Contact
-
-Fei Wang  
-School of Mathematics and Statistics, Xi'an Jiaotong University.
+This project is released under the BSD 3-Clause License. See `LICENSE`.

@@ -1,10 +1,27 @@
 cff-version: 1.2.0
 message: "If you use this code, please cite the corresponding paper."
-title: "Paper Code Template"
+title: "SO-RaNN PNP Paper Code"
+type: software
 authors:
+  - family-names: Li
+    given-names: Yunlong
+    affiliation: "Xi'an Jiaotong University"
   - family-names: Wang
     given-names: Fei
     affiliation: "School of Mathematics and Statistics, Xi'an Jiaotong University"
-repository-code: "https://github.com/XJTU-AI4SciComp-Lab/rann-paper-code-template"
+repository-code: "https://github.com/XJTU-AI4SciComp-Lab/so-rann-pnp-paper-code"
 license: "BSD-3-Clause"
-date-released: "2026-07-03"
+version: "1.0.0"
+date-released: "2026-07-11"
+references:
+  - type: generic
+    title: "Structure-Oriented Randomized Neural Networks for Poisson-Nernst-Planck and Poisson-Nernst-Planck-Navier-Stokes Systems"
+    authors:
+      - family-names: Li
+        given-names: Yunlong
+      - family-names: Wang
+        given-names: Fei
+    year: 2026
+    identifiers:
+      - type: other
+        value: "arXiv:2606.19912v1"
