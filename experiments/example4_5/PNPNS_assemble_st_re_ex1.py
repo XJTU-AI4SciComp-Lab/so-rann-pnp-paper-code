@@ -6,7 +6,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from so_rann.paths import legacy_output_path
+from so_rann.experiment_io import legacy_output_path
 
 import ex1_real
 import numpy as np
@@ -19,6 +19,36 @@ from RNN_ref import RNN_funs
 import scipy
 
 torch.set_default_dtype(torch.float64)
+
+
+def _refit_phi_after_mass_correction(
+    phim, c1m, c2m, xy_inter, xt_re, s_c1, s_c2,
+    A_P, fb3, fe1, p1, eps, z1, z2, m, device,
+):
+    """Fit the reported potential to the final mass-corrected charge density."""
+    c1_cut_in = c1m(xy_inter)[1]
+    c2_cut_in = c2m(xy_inter)[1]
+    time_nodes = xt_re.detach().cpu().numpy()
+    interior_times = xy_inter[:, 2].detach().cpu().numpy()
+    scale1_in = torch.as_tensor(
+        np.interp(interior_times, time_nodes, s_c1.detach().cpu().numpy()),
+        dtype=c1_cut_in.dtype,
+        device=c1_cut_in.device,
+    ).reshape(-1, 1)
+    scale2_in = torch.as_tensor(
+        np.interp(interior_times, time_nodes, s_c2.detach().cpu().numpy()),
+        dtype=c2_cut_in.dtype,
+        device=c2_cut_in.device,
+    ).reshape(-1, 1)
+    rhs_in = (
+        ex1_real.f3(xy_inter, eps, z1, z2)
+        + z1 * scale1_in * c1_cut_in
+        + z2 * scale2_in * c2_cut_in
+    ).detach().cpu().numpy()
+    rhs = np.vstack((rhs_in, p1 * fb3, fe1))
+    weights = np.linalg.lstsq(A_P, rhs, rcond=None)[0][:m]
+    phim.predict.weight.data = torch.from_numpy(weights).T.to(device)
+
 
 def PNPNS_plot_st_re(xt_re, results, k):
     """Optimized plotting helper."""
@@ -177,9 +207,13 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
     total_time1 = 0        
     total_time2 = 0        
     total_time3 = 0        
+    picard_iterations = []
 
     results = {
-        'm1': np.zeros(Nre), 'm2': np.zeros(Nre), 'e': np.zeros(Nre), 'Divergence_free': np.zeros(Nre),
+        'm1': np.zeros(Nre), 'm2': np.zeros(Nre),
+        'm1_raw': np.zeros(Nre), 'm2_raw': np.zeros(Nre),
+        'm1_cut': np.zeros(Nre), 'm2_cut': np.zeros(Nre),
+        'e': np.zeros(Nre), 'Divergence_free': np.zeros(Nre),
         'e_real': np.zeros(Nre), 'c1_min': np.zeros(Nre), 'c2_min': np.zeros(Nre),
         'c1_error': np.zeros(Nre), 'c2_error': np.zeros(Nre), 'phi_error': np.zeros(Nre),
         'u1_error': np.zeros(Nre), 'u2_error': np.zeros(Nre), 'p_error': np.zeros(Nre),
@@ -188,7 +222,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
     xt_re_all = torch.zeros(Nre * Nt)
 
     results_all = {
-        'm1_all': np.zeros(Nre * Nt), 'm2_all': np.zeros(Nre * Nt), 'Divergence_free_all': np.zeros(Nre * Nt),
+        'm1_all': np.zeros(Nre * Nt), 'm2_all': np.zeros(Nre * Nt),
+        'm1_raw_all': np.zeros(Nre * Nt), 'm2_raw_all': np.zeros(Nre * Nt),
+        'm1_cut_all': np.zeros(Nre * Nt), 'm2_cut_all': np.zeros(Nre * Nt),
+        'Divergence_free_all': np.zeros(Nre * Nt),
         'e_all': np.zeros(Nre * Nt), 'c1_min_all': np.zeros(Nre * Nt), 'c2_min_all': np.zeros(Nre * Nt),
         'c1_error_all': np.zeros(Nre * Nt), 'c2_error_all': np.zeros(Nre * Nt), 'phi_error_all': np.zeros(Nre * Nt),
         'u1_error_all': np.zeros(Nre * Nt), 'u2_error_all': np.zeros(Nre * Nt), 'p_error_all': np.zeros(Nre * Nt)
@@ -420,6 +457,7 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
         end2 = time.perf_counter()
         total_time2 += (end2 - start2)
     print(ttt)
+    picard_iterations.append(int(ttt))
 
     start3 = time.perf_counter()
 
@@ -434,6 +472,11 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
 
     s_c1 = mass1 / mass1_re
     s_c2 = mass2 / mass2_re
+
+    _refit_phi_after_mass_correction(
+        phim, c1m, c2m, xy_inter, xt_re, s_c1, s_c2,
+        A_P, fb3, fe1, p1, eps, z1, z2, m, device,
+    )
 
     end3 = time.perf_counter()
     total_time3 += (end3 - start3)
@@ -529,8 +572,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
     for i in range(Nre):
         x2_re = torch.cat((x2, xt_re[i] * torch.ones(x2.shape[0], 1)), dim=1)
         x2_re.requires_grad_(True)
-        c1m_plot_1 = c1m(x2_re)[1]
-        c2m_plot_1 = c2m(x2_re)[1]
+        c1_hidden, c1m_plot_1 = c1m(x2_re)[0], c1m(x2_re)[1]
+        c2_hidden, c2m_plot_1 = c2m(x2_re)[0], c2m(x2_re)[1]
+        c1_raw = c1m.predict(c1_hidden)
+        c2_raw = c2m.predict(c2_hidden)
         phim_plot_1 = phim(x2_re)[1]
         phimd1_plot = phim(x2_re)[2]
         u1m_plot_1 = um(x2_re)[3]
@@ -546,6 +591,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
         results['c2_min'][i] = torch.min(s_c2[i] * c2m_plot_1)
         results['m1'][i] = err_calculate.int_2d(s_c1[i]*c1m_plot_1, wr2, a, b, c, d)
         results['m2'][i] = err_calculate.int_2d(s_c2[i]*c2m_plot_1, wr2, a, b, c, d)
+        results['m1_raw'][i] = err_calculate.int_2d(c1_raw, wr2, a, b, c, d)
+        results['m2_raw'][i] = err_calculate.int_2d(c2_raw, wr2, a, b, c, d)
+        results['m1_cut'][i] = err_calculate.int_2d(c1m_plot_1, wr2, a, b, c, d)
+        results['m2_cut'][i] = err_calculate.int_2d(c2m_plot_1, wr2, a, b, c, d)
         results['Divergence_free'][i] = err_calculate.div_L2_norm_2d(u1m_plot_1, u2m_plot_1, x2_re, wr2, a, b, c, d)
         phidx = (phim.hidden.weight.data[:, 0:1].reshape([-1, m]) * phimd1_plot)@phim.predict.weight.data.T
         phidy = (phim.hidden.weight.data[:, 1:2].reshape([-1, m]) * phimd1_plot)@phim.predict.weight.data.T
@@ -566,6 +615,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
     results_all['e_all'][0:Nre] = results['e']
     results_all['m1_all'][0:Nre] = results['m1']
     results_all['m2_all'][0:Nre] = results['m2']
+    results_all['m1_raw_all'][0:Nre] = results['m1_raw']
+    results_all['m2_raw_all'][0:Nre] = results['m2_raw']
+    results_all['m1_cut_all'][0:Nre] = results['m1_cut']
+    results_all['m2_cut_all'][0:Nre] = results['m2_cut']
     results_all['c1_min_all'][0:Nre] = results['c1_min']
     results_all['c2_min_all'][0:Nre] = results['c2_min']
     results_all['c1_error_all'][0:Nre] = results['c1_error']
@@ -782,6 +835,7 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
             total_time2 += (end2 - start2)
 
         print(ttt)
+        picard_iterations.append(int(ttt))
         start3 = time.perf_counter()
         mass1_re = torch.zeros(Nre)
         mass2_re = torch.zeros(Nre)
@@ -794,6 +848,11 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
 
         s_c1 = mass1 / mass1_re
         s_c2 = mass2 / mass2_re
+
+        _refit_phi_after_mass_correction(
+            phim, c1m, c2m, xy_inter, xt_re, s_c1, s_c2,
+            A_P, fb3, fe1, p1, eps, z1, z2, m, device,
+        )
 
         end3 = time.perf_counter()
         total_time3 += (end3 - start3)
@@ -869,8 +928,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
         for i in range(Nre):
             x2_re = torch.cat((x2, xt_re[i] * torch.ones(x2.shape[0], 1)), dim=1)
             x2_re.requires_grad_(True)
-            c1m_plot_1 = c1m(x2_re)[1]
-            c2m_plot_1 = c2m(x2_re)[1]
+            c1_hidden, c1m_plot_1 = c1m(x2_re)[0], c1m(x2_re)[1]
+            c2_hidden, c2m_plot_1 = c2m(x2_re)[0], c2m(x2_re)[1]
+            c1_raw = c1m.predict(c1_hidden)
+            c2_raw = c2m.predict(c2_hidden)
             phim_plot_1 = phim(x2_re)[1]
             phimd1_plot = phim(x2_re)[2]
             u1m_plot_1 = um(x2_re)[3]
@@ -886,6 +947,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
             results['c2_min'][i] = torch.min(s_c2[i] * c2m_plot_1)
             results['m1'][i] = err_calculate.int_2d(s_c1[i]*c1m_plot_1, wr2, a, b, c, d)
             results['m2'][i] = err_calculate.int_2d(s_c2[i]*c2m_plot_1, wr2, a, b, c, d)
+            results['m1_raw'][i] = err_calculate.int_2d(c1_raw, wr2, a, b, c, d)
+            results['m2_raw'][i] = err_calculate.int_2d(c2_raw, wr2, a, b, c, d)
+            results['m1_cut'][i] = err_calculate.int_2d(c1m_plot_1, wr2, a, b, c, d)
+            results['m2_cut'][i] = err_calculate.int_2d(c2m_plot_1, wr2, a, b, c, d)
             results['Divergence_free'][i] = err_calculate.div_L2_norm_2d(u1m_plot_1, u2m_plot_1, x2_re, wr2, a, b, c, d)
             phidx = (phim.hidden.weight.data[:, 0:1].reshape([-1, m]) * phimd1_plot)@phim.predict.weight.data.T
             phidy = (phim.hidden.weight.data[:, 1:2].reshape([-1, m]) * phimd1_plot)@phim.predict.weight.data.T
@@ -908,6 +973,10 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
         results_all['e_all'][(k + 1) * Nre:(k + 2) * Nre] = results['e']
         results_all['m1_all'][(k + 1) * Nre:(k + 2) * Nre] = results['m1']
         results_all['m2_all'][(k + 1) * Nre:(k + 2) * Nre] = results['m2']
+        results_all['m1_raw_all'][(k + 1) * Nre:(k + 2) * Nre] = results['m1_raw']
+        results_all['m2_raw_all'][(k + 1) * Nre:(k + 2) * Nre] = results['m2_raw']
+        results_all['m1_cut_all'][(k + 1) * Nre:(k + 2) * Nre] = results['m1_cut']
+        results_all['m2_cut_all'][(k + 1) * Nre:(k + 2) * Nre] = results['m2_cut']
         results_all['c1_min_all'][(k + 1) * Nre:(k + 2) * Nre] = results['c1_min']
         results_all['c2_min_all'][(k + 1) * Nre:(k + 2) * Nre] = results['c2_min']
         results_all['c1_error_all'][(k + 1) * Nre:(k + 2) * Nre] = results['c1_error']
@@ -927,8 +996,19 @@ def pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, 
     print(total_time3)
     total_time = total_time1 + total_time2 + total_time3
     print(total_time)
-
-    return scaler
+    return {
+        'time': xt_re_all.detach().cpu().numpy(),
+        'results': {key: np.asarray(value).copy() for key, value in results_all.items()},
+        'scaler': {key: value.detach().cpu().numpy() for key, value in scaler.items()},
+        'picard_iterations': picard_iterations,
+        'potential_diagnostics': {'reported_phi_uses_final_charge': True},
+        'timings': {
+            'setup': float(total_time1),
+            'picard': float(total_time2),
+            'correction': float(total_time3),
+            'total': float(total_time),
+        },
+    }
 
 def pnpns_ex1_picard_st_decoupled(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, um, pm, a, b, c, d, t1, D1, D2, z1, z2, eps, nv, threshold, ite, p1):
     device = 'cpu'

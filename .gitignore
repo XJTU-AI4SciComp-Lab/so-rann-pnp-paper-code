@@ -47,6 +47,9 @@ results/**/*.h5
 results/**/*.hdf5
 results/**/*.pkl
 results/**/*.pth
+results/**/*.pt
+# Generated reviewer-response diagnostics and smoke-test outputs
+results/revision/
 
 # Large data files
 data/*.npy
@@ -55,3 +58,10 @@ data/*.mat
 data/*.h5
 data/*.hdf5
 data/*.pkl
+
+# Local manuscript, revision workspace, and submission packages
+PNP/
+code_revise/
+traditional_method/
+submission_package_*/
+submission_package_*.zip

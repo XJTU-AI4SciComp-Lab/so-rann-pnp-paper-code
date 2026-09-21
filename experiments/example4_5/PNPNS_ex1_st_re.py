@@ -16,13 +16,11 @@ import torch
 import numpy as np
 import argparse
 import PNPNS_assemble_st_re_ex1
+from so_rann.reproducibility import set_seed
 import ex1_real
 from matplotlib import pyplot as plt
 import matplotlib
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-torch.manual_seed(42)
-np.random.seed(42)
 
 def get_args(): 
     parser = argparse.ArgumentParser(description='Train the pde net', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -38,9 +36,11 @@ def get_args():
     parser.add_argument('-m', '--neurons', default=400, help='number of hidden layer nodes', type=int)
     parser.add_argument('-tt', '--times', default=20, help='times of Picard iteration', type=int)
     parser.add_argument('-p1', '--penalty1', default=100, help='penalty parameter on boundary', type=float)
+    parser.add_argument('--reynolds', default=1000, help='Reynolds number', type=float)
+    parser.add_argument('--seed', default=42, help='random seed', type=int)
     return parser.parse_args()
 
-def main(r_c1,r_c2,r_phi,r_u,r_p,n,Nt,Nre,n_int,m,tt,p1,device):
+def main(r_c1,r_c2,r_phi,r_u,r_p,n,Nt,Nre,n_int,m,tt,p1,device,reynolds=1000.0):
     a = -1
     b = 1
     c = -1
@@ -53,7 +53,9 @@ def main(r_c1,r_c2,r_phi,r_u,r_p,n,Nt,Nre,n_int,m,tt,p1,device):
     z1 = 1
     z2 = -1
     eps = 1
-    nv = 0.001
+    if reynolds <= 0:
+        raise ValueError("reynolds must be positive")
+    nv = 1.0 / reynolds
 
     # c1
     # RaNN
@@ -97,7 +99,7 @@ def main(r_c1,r_c2,r_phi,r_u,r_p,n,Nt,Nre,n_int,m,tt,p1,device):
     # s = 1
 
     # SO-RaNN
-    PNPNS_assemble_st_re_ex1.pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, um, pm, a, b, c, d, t1, D1, D2, z1, z2, eps, nv, threshold, tt, p1)
+    return PNPNS_assemble_st_re_ex1.pnpns_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, um, pm, a, b, c, d, t1, D1, D2, z1, z2, eps, nv, threshold, tt, p1)
     # RaNN
     # PNPNS_assemble_st_re_ex1.pnpns_ex1_picard_st_decoupled(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, um, pm, a, b, c, d, t1, D1, D2, z1, z2, eps, nv, threshold, tt, p1)
 
@@ -105,4 +107,5 @@ if __name__ == '__main__':
     args = get_args() 
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = torch.device('cpu')
-    main(r_c1=args.range1,r_c2=args.range2,r_phi=args.range3,r_u=args.range4,r_p=args.range5, n=args.numbers1, Nt=args.numbers_t, Nre=args.numbers_re, n_int=args.numbers2, m=args.neurons, tt=args.times, p1=args.penalty1, device=device)
+    set_seed(args.seed)
+    main(r_c1=args.range1,r_c2=args.range2,r_phi=args.range3,r_u=args.range4,r_p=args.range5, n=args.numbers1, Nt=args.numbers_t, Nre=args.numbers_re, n_int=args.numbers2, m=args.neurons, tt=args.times, p1=args.penalty1, device=device, reynolds=args.reynolds)

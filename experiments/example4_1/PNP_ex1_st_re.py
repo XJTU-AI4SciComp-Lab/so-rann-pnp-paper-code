@@ -14,10 +14,8 @@ import torch
 import numpy as np
 import argparse
 import PNP_assemble_st_re_ex1_mass_real
+from so_rann.reproducibility import set_seed
 
-
-torch.manual_seed(42)
-np.random.seed(42)
 
 def get_args(): 
     parser = argparse.ArgumentParser(description='Train the pde net', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -31,9 +29,10 @@ def get_args():
     parser.add_argument('-m', '--neurons', default=400, help='number of hidden layer nodes', type=int)
     parser.add_argument('-tt', '--times', default=30, help='times of Picard iteration', type=int)
     parser.add_argument('-p1', '--penalty1', default=100, help='penalty parameter on boundary', type=float)
+    parser.add_argument('--seed', default=42, help='random seed', type=int)
     return parser.parse_args()
 
-def main(r_c1,r_c2,r_phi,n,Nt,Nre,n_int,m,tt,p1,device):
+def main(r_c1,r_c2,r_phi,n,Nt,Nre,n_int,m,tt,p1,device,method="sorann"):
     a = -1
     b = 1
     c = -1
@@ -47,15 +46,18 @@ def main(r_c1,r_c2,r_phi,n,Nt,Nre,n_int,m,tt,p1,device):
     z2 = -1
     eps = 1
 
-    # RaNN
-    # c1m = RNN_funs.rnn_gauss_exact_1d(3, m, 1).to(device)
-    # SO-RaNN
-    c1m = RNN_funs.rnn_gauss_positive1_exact_1d(3, m, 1).to(device)
+    method = method.lower()
+    if method not in {"rann", "sorann"}:
+        raise ValueError("method must be 'rann' or 'sorann'")
+
+    concentration_model = (
+        RNN_funs.rnn_gauss_exact_1d
+        if method == "rann"
+        else RNN_funs.rnn_gauss_positive1_exact_1d
+    )
+    c1m = concentration_model(3, m, 1).to(device)
     RNN_funs.weights_init_uniform_0(c1m, -r_c1, r_c1)
-    # RaNN
-    # c2m = RNN_funs.rnn_gauss_exact_1d(3, m, 1).to(device)
-    # SO-RaNN
-    c2m = RNN_funs.rnn_gauss_positive1_exact_1d(3, m, 1).to(device)
+    c2m = concentration_model(3, m, 1).to(device)
     RNN_funs.weights_init_uniform_0(c2m, -r_c2, r_c2)
     phim = RNN_funs.rnn_gauss_exact_1d(3, m, 1).to(device)
     RNN_funs.weights_init_uniform_0(phim, -r_phi, r_phi)
@@ -72,13 +74,17 @@ def main(r_c1,r_c2,r_phi,n,Nt,Nre,n_int,m,tt,p1,device):
     s = (t2 - t1)/Nt
     # s = 1
 
-    # RaNN
-    # PNP_assemble_st_re_ex1_mass_real.pnp_ex1_picard_st_decoupled_t(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, a, b, c, d, t1, D1, D2, z1, z2, eps, threshold, tt, p1)
-    # SO-RaNN
-    PNP_assemble_st_re_ex1_mass_real.pnp_ex1_picard_st_decoupled_remass(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, a, b, c, d, t1, D1, D2, z1, z2, eps, threshold, tt, p1)
+    solver = (
+        PNP_assemble_st_re_ex1_mass_real.pnp_ex1_picard_st_decoupled_t
+        if method == "rann"
+        else PNP_assemble_st_re_ex1_mass_real.pnp_ex1_picard_st_decoupled_remass
+    )
+    return solver(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim,
+                  a, b, c, d, t1, D1, D2, z1, z2, eps, threshold, tt, p1)
 
 if __name__ == '__main__':
     args = get_args() 
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = torch.device('cpu')
+    set_seed(args.seed)
     main(r_c1=args.range1,r_c2=args.range2,r_phi=args.range3, n=args.numbers1, Nt=args.numbers_t, Nre=args.numbers_re, n_int=args.numbers2, m=args.neurons, tt=args.times, p1=args.penalty1, device=device)

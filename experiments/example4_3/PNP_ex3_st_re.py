@@ -6,7 +6,8 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from so_rann.paths import legacy_output_path, result_path
+from so_rann.experiment_io import legacy_output_path, result_path
+from so_rann.reproducibility import set_seed
 
 # EX3（SIAM JNA ex.5.2）（benchmark test）
 
@@ -70,10 +71,13 @@ def get_args():
     parser.add_argument('-p1', '--penalty1', default=100, help='penalty parameter on boundary', type=float)
     parser.add_argument('--plot_only', action='store_true', help='only regenerate Figure 10 from saved checkpoints and scaler')
     parser.add_argument('--plot_batch_size', default=1000, help='batch size used when evaluating Figure 10 fields', type=int)
+    parser.add_argument('--seed', default=42, help='random seed', type=int)
+    parser.add_argument('--diagnostics_only', action='store_true', help='skip the expensive 200x200 solution panels')
     return parser.parse_args()
 
 
-def main(r_c1, r_c2, r_phi, n, Nt, Nre, n_int, m, tt, p1, device, plot_only=False, plot_batch_size=1000): 
+def main(r_c1, r_c2, r_phi, n, Nt, Nre, n_int, m, tt, p1, device, plot_only=False,
+         plot_batch_size=1000, diagnostics_only=False):
     a = -2
     b = 2
     c = -2
@@ -134,6 +138,9 @@ def main(r_c1, r_c2, r_phi, n, Nt, Nre, n_int, m, tt, p1, device, plot_only=Fals
         scaler = PNP_assemble_st_re_ex3.pnp_ex3_picard_st_G_remass_threshold_plus(n, n_int, Nt, Nre, s, x2, wr2, m, c1m, c2m, phim, a, b, c, d, t1, D1, D2, z1, z2, eps, threshold, tt, p1)
         torch.save(scaler, scaler_path)
         print(f"Saved scaler to {scaler_path}", flush=True)
+
+    if diagnostics_only:
+        return scaler
 
     c1m_0 = torch.load(legacy_output_path('PNP_code/model_ex3/c1m_0.pth'), map_location=device, weights_only=False)
     c2m_0 = torch.load(legacy_output_path('PNP_code/model_ex3/c2m_0.pth'), map_location=device, weights_only=False)
@@ -212,11 +219,13 @@ def main(r_c1, r_c2, r_phi, n, Nt, Nre, n_int, m, tt, p1, device, plot_only=Fals
     print(f"Saving Figure 10 EPS to {figure10_path}", flush=True)
     fig.savefig(figure10_path)
     plt.close(fig)
+    return scaler
 
 if __name__ == '__main__':
     args = get_args() 
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = torch.device('cpu')
+    set_seed(args.seed)
     main(r_c1=args.range1, r_c2=args.range2, r_phi=args.range3, n=args.numbers1, Nt=args.numbers_t, Nre=args.numbers_re,
          n_int=args.numbers2, m=args.neurons, tt=args.times, p1=args.penalty1, device=device,
-         plot_only=args.plot_only, plot_batch_size=args.plot_batch_size)
+         plot_only=args.plot_only, plot_batch_size=args.plot_batch_size, diagnostics_only=args.diagnostics_only)

@@ -17,10 +17,10 @@ systems.
 ## Method Summary
 
 SO-RaNN solves decoupled linearized PNP and PNP-NS subproblems with randomized
-neural networks in a space-time formulation. The experiments include positivity
-correction, selected-time mass matching, SAV-type post-processing for energy
-dissipation diagnostics, and a divergence-free velocity approximation for the
-PNP-NS system.
+neural networks in a space-time formulation. The experiments include value-level
+positivity correction, selected-time mass matching, an SAV auxiliary-variable
+correction, separately reported physical-energy diagnostics, and a divergence-free
+velocity representation for the PNP-NS system.
 
 ## Repository Structure
 
@@ -98,8 +98,23 @@ python experiments/example4_6/PNPNS_ex2_st_re.py
 ```
 
 See `docs/reproduction.md` for the mapping from paper tables and figures to
-scripts. Generated figures are written under `figures/`; generated checkpoints
-are written under `results/checkpoints/`.
+scripts. The main experiment scripts write figures under `figures/` and
+checkpoints under `results/checkpoints/`. The additional diagnostic, parameter
+sweep, and finite-difference scripts write run-specific artifacts under
+`results/revision/`.
+
+The submission-revision experiments are integrated into their corresponding
+`experiments/example4_*` directories. They include the Example 4.1
+charge-compatibility study, ten-seed statistics, the four-width RaNN/SO-RaNN
+timing study, and multi-resolution FDM comparison; the Example 4.3
+strategy-wise diagnostics; and the Example 4.5 final-charge Poisson-fit and
+charge-compatibility checks.
+
+## Code Archive
+
+The baseline public release is archived as version 1.0.1 on Zenodo:
+https://doi.org/10.5281/zenodo.21316221. The integrated experiment scripts and
+their machine-readable summaries accompany the revised manuscript.
 
 ## Data
 
