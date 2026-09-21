@@ -99,7 +99,9 @@ python experiments/example4_6/PNPNS_ex2_st_re.py
 
 See `docs/reproduction.md` for the mapping from paper tables and figures to
 scripts. Generated figures are written under `figures/`; generated checkpoints
-are written under `results/checkpoints/`.
+are written under `results/checkpoints/`. Additional experiment scripts are
+organized in the corresponding `experiments/example4_*` directories, with
+run-specific outputs under `results/revision/`.
 
 ## Data
 

@@ -11,8 +11,8 @@ authors:
     affiliation: "School of Mathematics and Statistics, Xi'an Jiaotong University"
 repository-code: "https://github.com/XJTU-AI4SciComp-Lab/so-rann-pnp-paper-code"
 license: "BSD-3-Clause"
-version: "1.0.0"
-date-released: "2026-07-11"
+version: "1.0.1"
+date-released: "2026-07-12"
 references:
   - type: generic
     title: "Structure-Oriented Randomized Neural Networks for Poisson-Nernst-Planck and Poisson-Nernst-Planck-Navier-Stokes Systems"
