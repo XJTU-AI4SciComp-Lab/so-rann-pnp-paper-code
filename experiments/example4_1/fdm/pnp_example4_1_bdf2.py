@@ -363,5 +363,3 @@ def solve_example4_1(
         final_normalized_charge_defect=float(abs(charge) / max(charge_scale, 1e-30)),
         runtime_seconds=float(runtime),
     )
-
-

@@ -128,5 +128,3 @@ def run(args: argparse.Namespace) -> list[dict[str, float | int | str]]:
 
 if __name__ == "__main__":
     run(parse_args())
-
-
